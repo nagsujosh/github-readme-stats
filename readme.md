@@ -158,7 +158,7 @@ All endpoints accept the following optional query parameters:
 ## Usage in GitHub README
 
 ```md
-![GitHub Stats](https://github-readme-stats.yourdomain.com/deployment/stats/classic/nagsujosh)
+![GitHub Stats](https://github-readme-stats.sujoshnag.com/stats/classic/nagsujosh)
 ```
 
 SVGs update automatically as GitHub data changes.
@@ -192,12 +192,11 @@ http://localhost:3000
 ## Project Structure
 
 ```
-app/
- ├─ deployment/
- │   └─ stats/
- │       ├─ classic/
- │       ├─ maturity/
- │       └─ profile/
+app/    
+ ├─stats/
+ │   ├─ classic/
+ │   ├─ maturity/
+ │   └─ profile/
  ├─ api/
  ├─ components/
  ├─ lib/
