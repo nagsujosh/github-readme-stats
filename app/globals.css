@@ -100,6 +100,30 @@ a:hover {
   color: var(--bg-primary);
 }
 
+ /* Copy button */
+.copyBtn {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.copyBtn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+.copyBtnSuccess {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+.copyBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -139,4 +163,10 @@ a:hover {
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@media (min-width: 1024px) {
+  .builderGrid {
+    grid-template-columns: 1fr 1fr;
+  }
 }

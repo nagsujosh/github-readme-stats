@@ -20,17 +20,17 @@ const CARD_INFO: Record<CardType, { title: string; description: string; path: st
   classic: {
     title: "Classic Board",
     description: "Complete stats overview with languages, activity, and metrics",
-    path: "/deployment/stats/classic",
+    path: "/stats/classic",
   },
   maturity: {
     title: "Maturity Card",
     description: "Engineering maturity score with strengths and gaps analysis",
-    path: "/deployment/stats/maturity",
+    path: "/stats/maturity",
   },
   profile: {
     title: "Profile Card",
     description: "Compact profile summary with key statistics",
-    path: "/deployment/stats/profile",
+    path: "/stats/profile",
   },
 };
 
@@ -126,7 +126,7 @@ export default function Home() {
             <span style={styles.logoText}>readme<span style={styles.logoAccent}>.stats</span></span>
           </div>
           <a 
-            href="https://github.com" 
+            href="https://github.com/nagsujosh/github-readme-stats" 
             target="_blank" 
             rel="noopener noreferrer"
             style={styles.headerLink}
@@ -152,7 +152,7 @@ export default function Home() {
 
       {/* Builder */}
       <main style={styles.main}>
-        <div style={styles.builder}>
+        <div style={styles.builderGrid} className="builderGrid">
           {/* Left: Configuration */}
           <div style={styles.configPanel}>
             <div style={styles.section}>
@@ -331,17 +331,15 @@ export default function Home() {
 
             <div style={styles.section}>
               <label style={styles.label}>Generated URL</label>
-              <div style={styles.outputBox}>
+              <div style={styles.outputBox} className="responsive-output">
                 <code style={styles.outputCode}>
                   {generatedUrl || "Enter a username to generate URL"}
                 </code>
                 <button
                   onClick={() => handleCopy("url")}
                   disabled={!generatedUrl}
-                  style={{
-                    ...styles.copyBtn,
-                    ...(copied === "url" ? styles.copyBtnSuccess : {}),
-                  }}
+                  className={`copyBtn ${copied === "url" ? "copyBtnSuccess" : ""}`}
+                  style={styles.copyBtn}   // layout-only
                 >
                   {copied === "url" ? "Copied!" : "Copy"}
                 </button>
@@ -357,13 +355,12 @@ export default function Home() {
                 <button
                   onClick={() => handleCopy("markdown")}
                   disabled={!markdownSnippet}
-                  style={{
-                    ...styles.copyBtn,
-                    ...(copied === "markdown" ? styles.copyBtnSuccess : {}),
-                  }}
+                  className={`copyBtn ${copied === "markdown" ? "copyBtnSuccess" : ""}`}
+                  style={styles.copyBtn}
                 >
                   {copied === "markdown" ? "Copied!" : "Copy"}
                 </button>
+
               </div>
             </div>
           </div>
@@ -456,13 +453,12 @@ const styles: Record<string, React.CSSProperties> = {
     margin: "0 auto",
     width: "100%",
   },
-  builder: {
+  builderGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 32,
-    alignItems: "start",
+    gap: 32
   },
   configPanel: {
+    minWidth: 0,
     background: "var(--bg-secondary)",
     borderRadius: "var(--radius-lg)",
     padding: 32,
@@ -470,8 +466,9 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 28,
-  },
+  },  
   previewPanel: {
+    minWidth: 0,
     background: "var(--bg-secondary)",
     borderRadius: "var(--radius-lg)",
     padding: 32,
@@ -481,7 +478,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 28,
     position: "sticky" as const,
     top: 100,
-  },
+  },  
   section: {
     display: "flex",
     flexDirection: "column",
@@ -635,25 +632,23 @@ const styles: Record<string, React.CSSProperties> = {
   },
   outputCode: {
     flex: 1,
+    minWidth: 0,
     fontFamily: "var(--font-mono)",
     fontSize: 13,
     color: "var(--text-secondary)",
     overflow: "hidden",
     textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-  },
+    whiteSpace: "nowrap",
+  },  
   copyBtn: {
     padding: "8px 16px",
-    background: "var(--bg-elevated)",
     border: "1px solid var(--border)",
     borderRadius: "var(--radius-sm)",
-    color: "var(--text-primary)",
     fontSize: 13,
     fontWeight: 500,
+    whiteSpace: "nowrap",
     cursor: "pointer",
-    transition: "all 0.2s",
-    whiteSpace: "nowrap" as const,
-  },
+  },  
   copyBtnSuccess: {
     background: "var(--accent)",
     borderColor: "var(--accent)",
@@ -665,5 +660,5 @@ const styles: Record<string, React.CSSProperties> = {
     color: "var(--text-tertiary)",
     fontSize: 14,
     borderTop: "1px solid var(--border)",
-  },
+  }
 };
