@@ -1,5 +1,5 @@
 import { jsonResponse } from "@/lib/utils/http";
-import { getVersion } from "./../../../../lib/cache/snapshotStore";
+import { getVersion } from "@/lib/cache/snapshotStore";
 
 export const runtime = "nodejs";
 
