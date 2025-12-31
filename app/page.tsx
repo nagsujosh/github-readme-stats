@@ -548,7 +548,7 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: "left" as const,
   },
   cardTypeBtnActive: {
-    borderColor: "var(--accent)",
+    border: "1px solid var(--accent)",
     background: "var(--accent-glow)",
   },
   cardTypeTitle: {

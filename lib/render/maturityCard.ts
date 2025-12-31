@@ -8,8 +8,10 @@ export function renderMaturityCard({
   bg,
   border,
   score,
+  subscores,
   strengths,
   gaps,
+  details = "low",
 }: {
   username: string;
   updatedAt: string;
@@ -19,8 +21,10 @@ export function renderMaturityCard({
   border: boolean;
 
   score: number;
+  subscores: { docs: number; maintenance: number; repoHygiene: number };
   strengths: string[];
   gaps: string[];
+  details?: "low" | "high";
 }) {
   const width = 640;
   const height = 220;
