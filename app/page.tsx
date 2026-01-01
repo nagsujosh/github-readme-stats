@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+
+/* =======================
+   Types
+======================= */
 
 type CardType = "classic" | "maturity" | "profile";
 type Theme = "light" | "dark";
 type DetailLevel = "low" | "high";
 
 interface CardConfig {
-  username: string;
+  username: string; // debounced / active username
   cardType: CardType;
   theme: Theme;
   accent: string;
@@ -15,6 +19,10 @@ interface CardConfig {
   border: boolean;
   details: DetailLevel;
 }
+
+/* =======================
+   Constants
+======================= */
 
 const CARD_INFO: Record<CardType, { title: string; description: string; path: string }> = {
   classic: {
@@ -56,7 +64,15 @@ const BG_PRESETS = {
   ],
 };
 
+/* =======================
+   Component
+======================= */
+
 export default function Home() {
+  /** RAW input (changes every keystroke) */
+  const [inputUsername, setInputUsername] = useState("");
+
+  /** ACTIVE config (network-safe) */
   const [config, setConfig] = useState<CardConfig>({
     username: "",
     cardType: "classic",
@@ -69,17 +85,54 @@ export default function Home() {
 
   const [copied, setCopied] = useState<"url" | "markdown" | null>(null);
 
-  const updateConfig = useCallback(<K extends keyof CardConfig>(key: K, value: CardConfig[K]) => {
-    setConfig((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  /* -----------------------
+     Helpers
+  ------------------------ */
+
+  const updateConfig = useCallback(
+    <K extends keyof CardConfig>(key: K, value: CardConfig[K]) => {
+      setConfig((prev) => ({ ...prev, [key]: value }));
+    },
+    []
+  );
+
+  /* -----------------------
+     Debounce username
+     (CORE FIX)
+  ------------------------ */
+
+  useEffect(() => {
+    const trimmed = inputUsername.trim();
+
+    // guard: ignore junk / short input
+    if (trimmed.length < 2) {
+      if (config.username !== "") {
+        updateConfig("username", "");
+      }
+      return;
+    }
+
+    // avoid redundant updates
+    if (trimmed === config.username) return;
+
+    const id = setTimeout(() => {
+      updateConfig("username", trimmed);
+    }, 350);
+
+    return () => clearTimeout(id);
+  }, [inputUsername, config.username, updateConfig]);
+
+  /* -----------------------
+     URL generation
+  ------------------------ */
 
   const generatedUrl = useMemo(() => {
     if (!config.username.trim()) return "";
-    
+
     const base = typeof window !== "undefined" ? window.location.origin : "";
     const path = CARD_INFO[config.cardType].path;
     const params = new URLSearchParams();
-    
+
     if (config.accent !== "6366f1") params.set("accent", config.accent);
     if (config.bg !== (config.theme === "dark" ? "0B1220" : "ffffff")) {
       params.set("bg", config.bg);
@@ -93,7 +146,7 @@ export default function Home() {
     }
 
     const query = params.toString();
-    return `${base}${path}/${config.username.trim()}${query ? `?${query}` : ""}`;
+    return `${base}${path}/${config.username}${query ? `?${query}` : ""}`;
   }, [config]);
 
   const markdownSnippet = useMemo(() => {
@@ -101,14 +154,25 @@ export default function Home() {
     return `![GitHub Stats](${generatedUrl})`;
   }, [generatedUrl]);
 
-  const handleCopy = useCallback(async (type: "url" | "markdown") => {
-    const text = type === "url" ? generatedUrl : markdownSnippet;
-    if (!text) return;
-    
-    await navigator.clipboard.writeText(text);
-    setCopied(type);
-    setTimeout(() => setCopied(null), 2000);
-  }, [generatedUrl, markdownSnippet]);
+  /* -----------------------
+     Clipboard
+  ------------------------ */
+
+  const handleCopy = useCallback(
+    async (type: "url" | "markdown") => {
+      const text = type === "url" ? generatedUrl : markdownSnippet;
+      if (!text) return;
+
+      await navigator.clipboard.writeText(text);
+      setCopied(type);
+      setTimeout(() => setCopied(null), 2000);
+    },
+    [generatedUrl, markdownSnippet]
+  );
+
+  /* =======================
+     Render
+  ======================= */
 
   return (
     <div style={styles.container}>
@@ -123,11 +187,13 @@ export default function Home() {
                 <path d="M2 12l10 5 10-5" />
               </svg>
             </div>
-            <span style={styles.logoText}>readme<span style={styles.logoAccent}>.stats</span></span>
+            <span style={styles.logoText}>
+              readme<span style={styles.logoAccent}>.stats</span>
+            </span>
           </div>
-          <a 
-            href="https://github.com/nagsujosh/github-readme-stats" 
-            target="_blank" 
+          <a
+            href="https://github.com/nagsujosh/github-readme-stats"
+            target="_blank"
             rel="noopener noreferrer"
             style={styles.headerLink}
           >
@@ -153,7 +219,7 @@ export default function Home() {
       {/* Builder */}
       <main style={styles.main}>
         <div style={styles.builderGrid} className="builderGrid">
-          {/* Left: Configuration */}
+          {/* Left: Config */}
           <div style={styles.configPanel}>
             <div style={styles.section}>
               <label style={styles.label}>GitHub Username</label>
@@ -161,15 +227,16 @@ export default function Home() {
                 <span style={styles.inputPrefix}>@</span>
                 <input
                   type="text"
-                  value={config.username}
-                  onChange={(e) => updateConfig("username", e.target.value)}
+                  value={inputUsername}
+                  onChange={(e) => setInputUsername(e.target.value)}
                   placeholder="nagsujosh"
-                  style={styles.input}
                   spellCheck={false}
+                  style={styles.input}
                 />
               </div>
             </div>
 
+            {/* Card type */}
             <div style={styles.section}>
               <label style={styles.label}>Card Type</label>
               <div style={styles.cardTypeGrid}>
@@ -189,6 +256,7 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Theme */}
             <div style={styles.section}>
               <label style={styles.label}>Theme</label>
               <div style={styles.segmentedControl}>
@@ -204,12 +272,13 @@ export default function Home() {
                       ...(config.theme === t ? styles.segmentActive : {}),
                     }}
                   >
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                    {t[0].toUpperCase() + t.slice(1)}
                   </button>
                 ))}
               </div>
             </div>
 
+            {/* Colors */}
             <div style={styles.row}>
               <div style={styles.halfSection}>
                 <label style={styles.label}>Accent Color</label>
@@ -240,9 +309,10 @@ export default function Home() {
                       style={{
                         ...styles.colorSwatch,
                         backgroundColor: `#${c.value}`,
-                        border: c.value === "ffffff" || c.value === "fffbeb" || c.value === "f8fafc" 
-                          ? "1px solid var(--border)" 
-                          : "none",
+                        border:
+                          c.value === "ffffff" || c.value === "fffbeb" || c.value === "f8fafc"
+                            ? "1px solid var(--border)"
+                            : "none",
                         ...(config.bg === c.value ? styles.colorSwatchActive : {}),
                       }}
                     />
@@ -251,25 +321,20 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Border + Details */}
             <div style={styles.row}>
               <div style={styles.halfSection}>
                 <label style={styles.label}>Border</label>
                 <div style={styles.segmentedControl}>
                   <button
                     onClick={() => updateConfig("border", true)}
-                    style={{
-                      ...styles.segment,
-                      ...(config.border ? styles.segmentActive : {}),
-                    }}
+                    style={{ ...styles.segment, ...(config.border ? styles.segmentActive : {}) }}
                   >
                     Show
                   </button>
                   <button
                     onClick={() => updateConfig("border", false)}
-                    style={{
-                      ...styles.segment,
-                      ...(!config.border ? styles.segmentActive : {}),
-                    }}
+                    style={{ ...styles.segment, ...(!config.border ? styles.segmentActive : {}) }}
                   >
                     Hide
                   </button>
@@ -282,19 +347,13 @@ export default function Home() {
                   <div style={styles.segmentedControl}>
                     <button
                       onClick={() => updateConfig("details", "low")}
-                      style={{
-                        ...styles.segment,
-                        ...(config.details === "low" ? styles.segmentActive : {}),
-                      }}
+                      style={{ ...styles.segment, ...(config.details === "low" ? styles.segmentActive : {}) }}
                     >
                       Low
                     </button>
                     <button
                       onClick={() => updateConfig("details", "high")}
-                      style={{
-                        ...styles.segment,
-                        ...(config.details === "high" ? styles.segmentActive : {}),
-                      }}
+                      style={{ ...styles.segment, ...(config.details === "high" ? styles.segmentActive : {}) }}
                     >
                       High
                     </button>
@@ -304,25 +363,15 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right: Preview & Output */}
+          {/* Right: Preview */}
           <div style={styles.previewPanel}>
             <div style={styles.section}>
               <label style={styles.label}>Preview</label>
               <div style={styles.previewContainer}>
-                {config.username.trim() ? (
-                  <img
-                    src={generatedUrl}
-                    alt="GitHub Stats Preview"
-                    style={styles.previewImg}
-                    key={generatedUrl}
-                  />
+                {config.username ? (
+                  <img src={generatedUrl} alt="GitHub Stats Preview" style={styles.previewImg} />
                 ) : (
                   <div style={styles.previewPlaceholder}>
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.4 }}>
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <path d="M21 15l-5-5L5 21" />
-                    </svg>
                     <span>Enter a username to see preview</span>
                   </div>
                 )}
@@ -331,16 +380,9 @@ export default function Home() {
 
             <div style={styles.section}>
               <label style={styles.label}>Generated URL</label>
-              <div style={styles.outputBox} className="responsive-output">
-                <code style={styles.outputCode}>
-                  {generatedUrl || "Enter a username to generate URL"}
-                </code>
-                <button
-                  onClick={() => handleCopy("url")}
-                  disabled={!generatedUrl}
-                  className={`copyBtn ${copied === "url" ? "copyBtnSuccess" : ""}`}
-                  style={styles.copyBtn}   // layout-only
-                >
+              <div style={styles.outputBox}>
+                <code style={styles.outputCode}>{generatedUrl || "Enter a username to generate URL"}</code>
+                <button onClick={() => handleCopy("url")} disabled={!generatedUrl} style={styles.copyBtn}>
                   {copied === "url" ? "Copied!" : "Copy"}
                 </button>
               </div>
@@ -349,29 +391,18 @@ export default function Home() {
             <div style={styles.section}>
               <label style={styles.label}>Markdown</label>
               <div style={styles.outputBox}>
-                <code style={styles.outputCode}>
-                  {markdownSnippet || "![GitHub Stats](...)"}
-                </code>
-                <button
-                  onClick={() => handleCopy("markdown")}
-                  disabled={!markdownSnippet}
-                  className={`copyBtn ${copied === "markdown" ? "copyBtnSuccess" : ""}`}
-                  style={styles.copyBtn}
-                >
+                <code style={styles.outputCode}>{markdownSnippet || "![GitHub Stats](...)"}</code>
+                <button onClick={() => handleCopy("markdown")} disabled={!markdownSnippet} style={styles.copyBtn}>
                   {copied === "markdown" ? "Copied!" : "Copy"}
                 </button>
-
               </div>
             </div>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
       <footer style={styles.footer}>
-        <p>
-          Built with Love ❤️ @nagsujosh
-        </p>
+        <p>Built with Love ❤️ @nagsujosh</p>
       </footer>
     </div>
   );
