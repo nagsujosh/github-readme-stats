@@ -101,26 +101,37 @@ export default function Home() {
      (CORE FIX)
   ------------------------ */
 
+  function isValidGitHubUsername(username: string): boolean {
+    if (username.length > 39) return false;
+    if (username.startsWith("-") || username.endsWith("-")) return false;
+    if (username.includes("--")) return false;
+    return /^[a-zA-Z0-9-]+$/.test(username);
+  }  
+
   useEffect(() => {
     const trimmed = inputUsername.trim();
-
-    // guard: ignore junk / short input
-    if (trimmed.length < 2) {
+  
+    if (!trimmed) {
       if (config.username !== "") {
         updateConfig("username", "");
       }
       return;
     }
-
-    // avoid redundant updates
+  
+    if (!isValidGitHubUsername(trimmed)) {
+      updateConfig("username", "");
+      return;
+    }
+  
     if (trimmed === config.username) return;
-
+  
     const id = setTimeout(() => {
       updateConfig("username", trimmed);
     }, 350);
-
+  
     return () => clearTimeout(id);
   }, [inputUsername, config.username, updateConfig]);
+  
 
   /* -----------------------
      URL generation
@@ -221,21 +232,33 @@ export default function Home() {
         <div style={styles.builderGrid} className="builderGrid">
           {/* Left: Config */}
           <div style={styles.configPanel}>
-            <div style={styles.section}>
-              <label style={styles.label}>GitHub Username</label>
-              <div style={styles.inputWrapper}>
-                <span style={styles.inputPrefix}>@</span>
-                <input
-                  type="text"
-                  value={inputUsername}
-                  onChange={(e) => setInputUsername(e.target.value)}
-                  placeholder="nagsujosh"
-                  spellCheck={false}
-                  style={styles.input}
-                />
-              </div>
+          <div style={styles.section}>
+            <label style={styles.label}>GitHub Username</label>
+
+            <div style={styles.inputWrapper}>
+              <span style={styles.inputPrefix}>@</span>
+              <input
+                type="text"
+                value={inputUsername}
+                onChange={(e) => setInputUsername(e.target.value)}
+                placeholder="nagsujosh"
+                spellCheck={false}
+                style={styles.input}
+              />
             </div>
 
+            {inputUsername && !isValidGitHubUsername(inputUsername.trim()) && (
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-tertiary)",
+                  marginTop: 4,
+                }}
+              >
+                Invalid GitHub username format
+              </span>
+            )}
+          </div>
             {/* Card type */}
             <div style={styles.section}>
               <label style={styles.label}>Card Type</label>
