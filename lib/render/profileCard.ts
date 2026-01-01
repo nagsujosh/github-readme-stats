@@ -7,7 +7,6 @@ import { ringGaugeSvg, barsSvg } from "./charts";
 
 type ProfileInput = {
   score: number;
-  dimensions: Record<string, number>;
 };
 
 type CoverageInput = {

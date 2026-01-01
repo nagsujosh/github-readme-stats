@@ -161,8 +161,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ username: strin
     repoCount: snap.repoCount,
     stars: snap.aggregates.starsTotal,
     forks: snap.aggregates.forksTotal,
-    archivedCount: snap.aggregates.archivedCount,
-    forkedCount: snap.aggregates.forkedCount,
 
     maturityScore: snap.unique.maturity.score,
     engineeringScore: snap.unique.engineering.score,
