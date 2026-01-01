@@ -1,84 +1,162 @@
 import { baseSvg, escapeHtml, SvgTheme } from "./svgBase";
+import { ringGaugeSvg, barsSvg } from "./charts";
+
+/* =========================
+   Types
+========================= */
+
+type ProfileInput = {
+  score: number;
+  dimensions: Record<string, number>;
+};
+
+type CoverageInput = {
+  reposSampledPct: number;
+  recentlyActivePct: number;
+};
+
+/* =========================
+   Utils
+========================= */
+
+const clamp100 = (n: number) => Math.max(0, Math.min(100, n));
+const safeText = (v: unknown) => escapeHtml(v == null ? "" : String(v));
+
+/* =========================
+   Renderer
+========================= */
 
 export function renderProfileCard({
   username,
-  repoCount,
-  stars,
-  forks,
-  topLanguages,
-  archivedCount,
-  forkedCount,
-  maturityScore,
-  updatedAt,
   theme,
   accent,
   bg,
   border,
+
+  engineering,
+  maturity,
+  coverage,
 }: {
   username: string;
-  repoCount: number;
-  stars: number;
-  forks: number;
-  topLanguages: Array<{ name: string; share: number }>;
-  archivedCount: number;
-  forkedCount: number;
-  maturityScore: number;
-  updatedAt: string;
   theme: SvgTheme;
   accent: string;
   bg: string;
   border: boolean;
+
+  engineering: ProfileInput;
+  maturity: ProfileInput;
+  coverage: CoverageInput;
 }) {
-  const width = 540;
+  const width = 420;
   const height = 220;
+  const pad = 20;
 
-  const langDisplay = topLanguages
-    .slice(0, 4)
-    .map((l) => `${l.name} (${Math.round(l.share * 100)}%)`)
-    .join(", ") || "—";
+  const isDark = theme === "dark";
+  const fg = isDark ? "#E5E7EB" : "#0F172A";
+  const muted = isDark ? "#9CA3AF" : "#64748B";
+  const panel = isDark ? "rgba(255,255,255,0.06)" : "rgba(2,6,23,0.05)";
+  const stroke = isDark ? "rgba(255,255,255,0.12)" : "rgba(2,6,23,0.12)";
 
-  const body = `
-  <text x="24" y="38" class="t fg" font-size="18" font-weight="700">${escapeHtml(username)} • Profile Overview</text>
-  <text x="24" y="60" class="t muted" font-size="12">Last updated: ${escapeHtml(updatedAt)}</text>
+  /* =========================
+     Header
+  ========================= */
 
-  <g transform="translate(24, 80)">
-    ${metricBlock(0, "Repos", String(repoCount), accent)}
-    ${metricBlock(120, "Stars", formatNumber(stars), accent)}
-    ${metricBlock(240, "Forks", formatNumber(forks), accent)}
-    ${metricBlock(360, "Maturity", maturityScore.toFixed(1), accent)}
-  </g>
-
-  <g transform="translate(24, 150)">
-    <text x="0" y="14" class="t muted" font-size="12">Archived: ${archivedCount} • Forked: ${forkedCount}</text>
-    <text x="0" y="36" class="t muted" font-size="12">Languages: ${escapeHtml(langDisplay)}</text>
-  </g>
+  const header = `
+    <text x="${pad}" y="28" font-size="16" font-weight="800" fill="${fg}">
+      ${safeText(username)}
+    </text>
+    <text x="${pad}" y="46" font-size="11" fill="${muted}">
+      Profile
+    </text>
   `;
+
+  /* =========================
+     Score Rings
+  ========================= */
+
+  const rings = `
+    <g transform="translate(${pad},64)">
+      ${ringGaugeSvg({
+        cx: 42,
+        cy: 42,
+        r: 30,
+        value01: clamp100(engineering.score) / 100,
+        track: stroke,
+        fill: accent,
+        strokeWidth: 8,
+      })}
+      <text x="42" y="48" text-anchor="middle" font-size="18" font-weight="900" fill="${fg}">
+        ${clamp100(engineering.score)}
+      </text>
+      <text x="42" y="64" text-anchor="middle" font-size="9" fill="${muted}">
+        ENG
+      </text>
+
+      ${ringGaugeSvg({
+        cx: 120,
+        cy: 42,
+        r: 30,
+        value01: clamp100(maturity.score) / 100,
+        track: stroke,
+        fill: accent,
+        strokeWidth: 8,
+      })}
+      <text x="120" y="48" text-anchor="middle" font-size="18" font-weight="900" fill="${fg}">
+        ${clamp100(maturity.score)}
+      </text>
+      <text x="120" y="64" text-anchor="middle" font-size="9" fill="${muted}">
+        MAT
+      </text>
+    </g>
+  `;
+
+  /* =========================
+     Coverage
+  ========================= */
+
+  const coverageBlock = `
+    <g transform="translate(${pad + 200},72)">
+      <rect width="180" height="54" rx="12" fill="${panel}" stroke="${stroke}" />
+      <text x="12" y="18" font-size="10" fill="${muted}">
+        Coverage
+      </text>
+      <text x="12" y="36" font-size="16" font-weight="700" fill="${fg}">
+        ${clamp100(coverage.reposSampledPct)}%
+      </text>
+      <text x="56" y="36" font-size="10" fill="${muted}">
+        sampled
+      </text>
+      <text x="12" y="50" font-size="10" fill="${muted}">
+        ${clamp100(coverage.recentlyActivePct)}% active
+      </text>
+    </g>
+  `;
+
+  /* =========================
+     SVG
+  ========================= */
 
   return baseSvg({
     width,
     height,
-    title: `${username} Profile Overview`,
-    desc: `GitHub profile statistics for ${username} including repos, stars, forks, and maturity score.`,
+    title: `${username} Profile`,
+    desc: `Profile metrics for ${username}`,
     bg,
     border,
     accent,
     theme,
-    body,
+    body: `
+      <defs>
+        <style>
+          text {
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+          }
+        </style>
+      </defs>
+
+      ${header}
+      ${rings}
+      ${coverageBlock}
+    `,
   });
 }
-
-function metricBlock(x: number, label: string, value: string, accent: string) {
-  return `
-  <g transform="translate(${x},0)">
-    <text x="0" y="14" class="t muted" font-size="12">${escapeHtml(label)}</text>
-    <text x="0" y="38" class="t fg" font-size="22" font-weight="800">${escapeHtml(value)}</text>
-    <rect x="0" y="46" width="90" height="4" rx="2" fill="${accent}" opacity="0.25" />
-  </g>`;
-}
-
-function formatNumber(n: number): string {
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
-  if (n >= 1000) return (n / 1000).toFixed(1) + "K";
-  return String(n);
-}
-

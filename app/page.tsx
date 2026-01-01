@@ -18,7 +18,7 @@ interface CardConfig {
 
 const CARD_INFO: Record<CardType, { title: string; description: string; path: string }> = {
   classic: {
-    title: "Classic Board",
+    title: "Classic",
     description: "Complete stats overview with languages, activity, and metrics",
     path: "/stats/classic",
   },

@@ -1,139 +1,176 @@
 import { baseSvg, escapeHtml, SvgTheme } from "./svgBase";
+import { ringGaugeSvg, barsSvg } from "./charts";
+
+/* =========================
+   Types
+========================= */
+
+type MaturityInput = {
+  score: number;
+  subscores?: {
+    docs?: number;
+    maintenance?: number;
+    repoHygiene?: number;
+  };
+};
+
+type CoverageInput = {
+  reposSampledPct: number;
+  recentlyActivePct: number;
+};
+
+/* =========================
+   Utils
+========================= */
+
+const clamp100 = (n: number) => Math.max(0, Math.min(100, n));
+const safeText = (v: unknown) => escapeHtml(v == null ? "" : String(v));
+
+/* =========================
+   Renderer
+========================= */
 
 export function renderMaturityCard({
   username,
-  updatedAt,
+  maturity,
+  coverage,
   theme,
   accent,
   bg,
   border,
-  score,
-  subscores,
-  strengths,
-  gaps,
-  details = "low",
 }: {
   username: string;
-  updatedAt: string;
+  maturity: MaturityInput;
+  coverage: CoverageInput;
   theme: SvgTheme;
   accent: string;
   bg: string;
   border: boolean;
-
-  score: number;
-  subscores: { docs: number; maintenance: number; repoHygiene: number };
-  strengths: string[];
-  gaps: string[];
-  details?: "low" | "high";
 }) {
-  const width = 640;
-  const height = 220;
+  const width = 420;
+  const height = 180;
+  const pad = 20;
 
-  const fg = theme === "dark" ? "#E5E7EB" : "#0F172A";
-  const muted = theme === "dark" ? "#9CA3AF" : "#64748B";
-  const soft = theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(2,6,23,0.06)";
+  const isDark = theme === "dark";
+  const fg = isDark ? "#E5E7EB" : "#0F172A";
+  const muted = isDark ? "#9CA3AF" : "#64748B";
+  const stroke = isDark ? "rgba(255,255,255,0.12)" : "rgba(2,6,23,0.12)";
+  const panel = isDark ? "rgba(255,255,255,0.06)" : "rgba(2,6,23,0.05)";
 
-  const scorePct = Math.max(0, Math.min(1, score / 10));
-  const radius = 44;
-  const circumference = 2 * Math.PI * radius;
-  const dash = circumference * scorePct;
+  const subs = maturity.subscores ?? {};
 
-  const verdict =
-    score >= 7 ? "Production-ready"
-    : score >= 4 ? "Developing"
-    : "Early-stage";
+  /* =========================
+     Header
+  ========================= */
 
-  const verdictColor =
-    score >= 7 ? "#22C55E"
-    : score >= 4 ? "#F59E0B"
-    : "#EF4444";
+  const header = `
+    <text x="${pad}" y="28" font-size="16" font-weight="800" fill="${fg}">
+      ${safeText(username)}
+    </text>
+    <text x="${pad}" y="46" font-size="11" fill="${muted}">
+      Maturity
+    </text>
+  `;
 
-  const pill = (text: string, color: string, y: number) => `
-    <g transform="translate(0,${y})">
-      <rect width="320" height="28" rx="14" fill="${color}" opacity="0.12"/>
-      <text x="14" y="19" font-size="12" fill="${color}" font-weight="600">
-        ${escapeHtml(text)}
+  /* =========================
+     Score Ring
+  ========================= */
+
+  const ring = `
+    <g transform="translate(${pad},62)">
+      ${ringGaugeSvg({
+        cx: 42,
+        cy: 42,
+        r: 30,
+        value01: clamp100(maturity.score) / 100,
+        track: stroke,
+        fill: accent,
+        strokeWidth: 8,
+      })}
+      <text
+        x="42"
+        y="48"
+        text-anchor="middle"
+        font-size="20"
+        font-weight="900"
+        fill="${fg}"
+      >
+        ${clamp100(maturity.score)}
       </text>
     </g>
   `;
 
-  const body = `
-  <defs>
-    <linearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="${accent}" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="${accent}" stop-opacity="0.4"/>
-    </linearGradient>
-  </defs>
+  /* =========================
+     Subscores
+  ========================= */
 
-  <!-- Hero -->
-  <rect x="0" y="0" width="${width}" height="64" rx="16" fill="url(#heroGrad)"/>
-  <text x="24" y="40" font-size="20" font-weight="900" fill="#ffffff">
-    ${escapeHtml(username)} • Engineering Maturity
-  </text>
-  <text x="24" y="58" font-size="12" fill="rgba(255,255,255,0.85)">
-    Updated ${escapeHtml(updatedAt)}
-  </text>
-
-  <!-- Score ring -->
-  <g transform="translate(120, 128)">
-    <circle r="${radius}" fill="none" stroke="${soft}" stroke-width="10"/>
-    <circle
-      r="${radius}"
-      fill="none"
-      stroke="${verdictColor}"
-      stroke-width="10"
-      stroke-dasharray="${dash} ${circumference - dash}"
-      transform="rotate(-90)"
-    />
-    <text y="-2" text-anchor="middle" font-size="26" font-weight="900" fill="${fg}">
-      ${score.toFixed(1)}
-    </text>
-    <text y="18" text-anchor="middle" font-size="11" fill="${muted}">
-      / 10
-    </text>
-    <text y="44" text-anchor="middle" font-size="12" font-weight="700" fill="${verdictColor}">
-      ${verdict}
-    </text>
-  </g>
-
-  <!-- Insights -->
-  <g transform="translate(260, 96)">
-    <text font-size="13" font-weight="800" fill="#22C55E">Strengths</text>
-    <g transform="translate(0, 12)">
-      ${
-        strengths.length
-          ? strengths.slice(0, 2).map((s, i) => pill(s, "#22C55E", i * 34)).join("")
-          : pill("No strong signals detected", muted, 0)
-      }
+  const bars = `
+    <g transform="translate(${pad + 100},76)">
+      ${barsSvg({
+        x: 0,
+        y: 0,
+        w: 260,
+        h: 18,
+        values: [
+          clamp100(subs.docs ?? 0),
+          clamp100(subs.maintenance ?? 0),
+          clamp100(subs.repoHygiene ?? 0),
+        ],
+        fill: accent,
+        gap: 6,
+        radius: 3,
+      })}
     </g>
-
-    <g transform="translate(0, 90)">
-      <text font-size="13" font-weight="800" fill="#EF4444">Gaps</text>
-      <g transform="translate(0, 12)">
-        ${
-          gaps.length
-            ? gaps.slice(0, 2).map((g, i) => pill(g, "#EF4444", i * 34)).join("")
-            : pill("No major gaps detected", muted, 0)
-        }
-      </g>
-    </g>
-  </g>
-
-  <!-- Footer -->
-  <text x="24" y="${height - 12}" font-size="10" fill="${muted}" opacity="0.6">
-    Based on repo hygiene, maintenance, CI, and releases
-  </text>
   `;
+
+  /* =========================
+     Coverage
+  ========================= */
+
+  const coverageBlock = `
+    <g transform="translate(${pad + 100},118)">
+      <rect width="260" height="44" rx="12" fill="${panel}" stroke="${stroke}" />
+      <text x="12" y="18" font-size="10" fill="${muted}">
+        Coverage
+      </text>
+      <text x="12" y="34" font-size="14" font-weight="700" fill="${fg}">
+        ${clamp100(coverage.reposSampledPct)}%
+      </text>
+      <text x="54" y="34" font-size="10" fill="${muted}">
+        sampled
+      </text>
+      <text x="120" y="34" font-size="10" fill="${muted}">
+        ${clamp100(coverage.recentlyActivePct)}% active
+      </text>
+    </g>
+  `;
+
+  /* =========================
+     SVG
+  ========================= */
 
   return baseSvg({
     width,
     height,
-    title: `${username} Engineering Maturity`,
-    desc: `Engineering maturity assessment for ${username}.`,
+    title: `${username} Maturity`,
+    desc: `Maturity metrics for ${username}`,
     bg,
     border,
     accent,
     theme,
-    body,
+    body: `
+      <defs>
+        <style>
+          text {
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+          }
+        </style>
+      </defs>
+
+      ${header}
+      ${ring}
+      ${bars}
+      ${coverageBlock}
+    `,
   });
 }

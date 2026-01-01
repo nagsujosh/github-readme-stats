@@ -1,15 +1,34 @@
 import { usernameSchema, themeSchema, hexColorSchema } from "@/lib/utils/validate";
 import { svgResponse, cacheHeaders } from "@/lib/utils/http";
 import { rateLimitIp, rateLimitAnalyzeUser } from "@/lib/cache/rateLimit";
-import { loadSnapshot, getSnapshotTtlSeconds, getVersion, saveSnapshot, tryAcquireAnalyzeLock, releaseAnalyzeLock } from "@/lib/cache/snapshotStore";
+
+import {
+  loadSnapshot,
+  saveSnapshot,
+  tryAcquireAnalyzeLock,
+  releaseAnalyzeLock,
+  getSnapshotTtlSeconds,
+  getVersion,
+} from "@/lib/cache/snapshotStore";
+
+import { upgradeSnapshotIfNeeded } from "@/lib/cache/upgradeSnapshot";
+
 import { listUserRepos } from "@/lib/github/client";
 import { normalizeRepos } from "@/lib/github/normalize";
-import { computeClassicAggregates } from "@/lib/signals/classic";
+
 import { computeMaturity } from "@/lib/signals/maturity";
+import { computeEngineering } from "@/lib/signals/engineering";
+import { computeCoverage } from "@/lib/signals/coverage";
+
 import { renderMaturityCard } from "@/lib/render/maturityCard";
 import type { Snapshot } from "@/lib/github/types";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/* =========================
+   Helpers
+========================= */
 
 function getIp(req: Request) {
   const fwd = req.headers.get("x-forwarded-for");
@@ -20,148 +39,140 @@ function pickTheme(theme: "light" | "dark" | "auto") {
   return theme === "dark" ? "dark" : "light";
 }
 
+/* =========================
+   Analysis
+========================= */
+
 async function analyzeAndSave(username: string): Promise<Snapshot> {
-  const ttlSeconds = getSnapshotTtlSeconds();
   const version = getVersion();
-  const nowIso = new Date().toISOString();
+  const ttlSeconds = getSnapshotTtlSeconds();
+  const generatedAt = new Date().toISOString();
 
   const { repos: apiRepos, meta } = await listUserRepos(username);
   const repos = normalizeRepos(apiRepos);
 
-  const aggregates = computeClassicAggregates(repos);
   const maturity = computeMaturity(repos);
+  const engineering = computeEngineering(repos);
+  const coverage = computeCoverage(repos);
 
   const snapshot: Snapshot = {
     version,
     username,
-    generatedAt: nowIso,
+    generatedAt,
     ttlSeconds,
+
     repoCount: repos.length,
     repos,
-    aggregates,
-    unique: { maturity },
-    debug: { githubApiCalls: meta.calls, rateLimit: meta.rateLimit },
+
+    aggregates: {
+      starsTotal: 0,
+      forksTotal: 0,
+      archivedCount: 0,
+      forkedCount: 0,
+      languages: [],
+    },
+
+    unique: {
+      maturity,
+      engineering,
+      coverage,
+    },
+
+    debug: {
+      githubApiCalls: meta.calls,
+      rateLimit: meta.rateLimit,
+    },
   };
 
   await saveSnapshot(username, snapshot);
   return snapshot;
 }
 
-function placeholderSvg(username: string) {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="540" height="140" role="img" aria-label="Analyzing ${username}" viewBox="0 0 540 140">
-  <title>Analyzing ${username}</title>
-  <desc>Generating engineering maturity snapshot.</desc>
-  <rect x="0" y="0" width="540" height="140" rx="16" fill="#ffffff"/>
-  <rect x="0.5" y="0.5" width="539" height="139" rx="16" fill="none" stroke="#e5e7eb"/>
-  <text x="24" y="44" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="16" font-weight="700" fill="#111827">
-    ${username} • Engineering Maturity
-  </text>
-  <text x="24" y="72" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="12" fill="#6b7280">
-    Analyzing repositories… refresh soon.
-  </text>
-</svg>`;
-}
+/* =========================
+   Route
+========================= */
 
-export async function GET(req: Request, ctx: { params: Promise<{ username: string }> }) {
-  const params = await ctx.params;
+export async function GET(
+  req: Request,
+  ctx: { params: Promise<{ username: string }> }
+) {
+  const { username } = await ctx.params;
   const ip = getIp(req);
+
+  /* ---------- IP rate limit ---------- */
   const rl = await rateLimitIp(ip);
   if (!rl.ok) {
-    return svgResponse(placeholderSvg(params.username), {
-      status: 429,
-      headers: cacheHeaders({ sMaxAgeSeconds: 30, staleWhileRevalidateSeconds: 60 }),
-    });
+    return svgResponse("", { status: 429 });
   }
 
-  const parse = usernameSchema.safeParse(params.username);
-  if (!parse.success) return svgResponse(placeholderSvg("invalid-user"), { status: 400 });
-  const username = parse.data;
+  /* ---------- validate username ---------- */
+  const parsed = usernameSchema.safeParse(username);
+  if (!parsed.success) {
+    return svgResponse("", { status: 400 });
+  }
 
+  /* ---------- parse theme & style params ---------- */
   const url = new URL(req.url);
-  const theme = themeSchema.safeParse(url.searchParams.get("theme") ?? "auto").success
-    ? themeSchema.parse(url.searchParams.get("theme") ?? "auto")
-    : "auto";
+  const themeParsed = themeSchema.safeParse(url.searchParams.get("theme") ?? "auto");
+  const theme = themeParsed.success ? themeParsed.data : "auto";
 
-  const accentParam = url.searchParams.get("accent");
-  const bgParam = url.searchParams.get("bg");
+  const accentParam = url.searchParams.get("accent") ?? undefined;
+  const bgParam = url.searchParams.get("bg") ?? undefined;
   const border = (url.searchParams.get("border") ?? "true") !== "false";
-  const details = (url.searchParams.get("details") ?? "low") === "high" ? "high" : "low";
 
-  const accent = accentParam && hexColorSchema.safeParse(accentParam).success ? `#${accentParam}` : "#22C55E";
-  const bg = bgParam && hexColorSchema.safeParse(bgParam).success ? `#${bgParam}` : (pickTheme(theme) === "dark" ? "#0B1220" : "#FFFFFF");
+  const accent =
+    accentParam && hexColorSchema.safeParse(accentParam).success
+      ? `#${accentParam}`
+      : "#6366F1";
 
-  const snap = await loadSnapshot(username);
+  const bg =
+    bgParam && hexColorSchema.safeParse(bgParam).success
+      ? `#${bgParam}`
+      : pickTheme(theme) === "dark"
+        ? "#0B1220"
+        : "#FFFFFF";
+
+  /* ---------- load snapshot (upgrade if needed) ---------- */
+  let snap = await loadSnapshot(username);
   if (snap) {
-    const m = snap.unique.maturity;
-    const svg = renderMaturityCard({
-      username,
-      score: m.score,
-      subscores: m.subscores,
-      strengths: m.strengths,
-      gaps: m.gaps,
-      updatedAt: new Date(snap.generatedAt).toISOString().slice(0, 10),
-      theme: pickTheme(theme),
-      accent,
-      bg,
-      border,
-      details,
-    });
-
-    return svgResponse(svg, {
-      status: 200,
-      headers: {
-        ...cacheHeaders({ sMaxAgeSeconds: 3600, staleWhileRevalidateSeconds: 86400 }),
-        "X-RateLimit-Limit": String(rl.limit),
-        "X-RateLimit-Remaining": String(rl.remaining),
-      },
-    });
+    snap = upgradeSnapshotIfNeeded(snap);
   }
 
-  const rlUser = await rateLimitAnalyzeUser(username);
-  if (!rlUser.ok) {
-    return svgResponse(placeholderSvg(username), {
-      status: 202,
-      headers: cacheHeaders({ sMaxAgeSeconds: 60, staleWhileRevalidateSeconds: 600 }),
-    });
+  /* ---------- analyze if missing ---------- */
+  if (!snap) {
+    const lock = await tryAcquireAnalyzeLock(username, 30);
+    if (!lock) {
+      return svgResponse("", { status: 202 });
+    }
+
+    try {
+      const userRL = await rateLimitAnalyzeUser(username);
+      if (!userRL.ok) {
+        return svgResponse("", { status: 429 });
+      }
+
+      snap = await analyzeAndSave(username);
+    } finally {
+      await releaseAnalyzeLock(username);
+    }
   }
 
-  const locked = await tryAcquireAnalyzeLock(username, 30);
-  if (!locked) {
-    return svgResponse(placeholderSvg(username), {
-      status: 202,
-      headers: cacheHeaders({ sMaxAgeSeconds: 10, staleWhileRevalidateSeconds: 120 }),
-    });
-  }
+  /* ---------- render ---------- */
+  const svg = renderMaturityCard({
+    username,
+    maturity: snap.unique.maturity,
+    coverage: snap.unique.coverage,
+    theme: pickTheme(theme),
+    accent,
+    bg,
+    border,
+  });
+  
 
-  try {
-    const fresh = await analyzeAndSave(username);
-    const m = fresh.unique.maturity;
-    const svg = renderMaturityCard({
-      username,
-      score: m.score,
-      subscores: m.subscores,
-      strengths: m.strengths,
-      gaps: m.gaps,
-      updatedAt: new Date(fresh.generatedAt).toISOString().slice(0, 10),
-      theme: pickTheme(theme),
-      accent,
-      bg,
-      border,
-      details,
-    });
-
-    return svgResponse(svg, {
-      status: 200,
-      headers: cacheHeaders({ sMaxAgeSeconds: 3600, staleWhileRevalidateSeconds: 86400 }),
-    });
-  } catch (e: unknown) {
-    const status = e instanceof Error && "status" in e && e.status === 404 ? 404 : 500;
-    return svgResponse(placeholderSvg(status === 404 ? "user-not-found" : username), {
-      status,
-      headers: cacheHeaders({ sMaxAgeSeconds: 60, staleWhileRevalidateSeconds: 600 }),
-    });
-  } finally {
-    await releaseAnalyzeLock(username);
-  }
+  return svgResponse(svg, {
+    headers: cacheHeaders({
+      sMaxAgeSeconds: 3600,
+      staleWhileRevalidateSeconds: 86400,
+    }),
+  });
 }
