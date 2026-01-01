@@ -401,6 +401,70 @@ export default function Home() {
         </div>
       </main>
 
+      {/* Engineering Maturity Model */}
+      <section style={styles.maturitySection}>
+        <h2 style={styles.maturityTitle}>Engineering Maturity Model</h2>
+
+        <p style={styles.maturityIntro}>
+          The Engineering Maturity score is an original, heuristic-based metric designed
+          to reflect how thoughtfully and consistently a developer maintains their
+          public GitHub projects. It is not a measure of “talent”, but of engineering
+          discipline over time.
+        </p>
+
+        <div style={styles.maturityGrid}>
+          <div style={styles.maturityCard}>
+            <h3 style={styles.maturityCardTitle}>Repository Hygiene</h3>
+            <p style={styles.maturityText}>
+              Evaluates how repositories are organized and maintained. Signals include
+              the ratio of archived to active repositories, presence of abandoned
+              projects, and long-term maintenance behavior.
+            </p>
+          </div>
+
+          <div style={styles.maturityCard}>
+            <h3 style={styles.maturityCardTitle}>Consistency of Activity</h3>
+            <p style={styles.maturityText}>
+              Measures whether activity is sustained over time rather than bursty.
+              Regular contributions and steady project evolution score higher than
+              sporadic spikes.
+            </p>
+          </div>
+
+          <div style={styles.maturityCard}>
+            <h3 style={styles.maturityCardTitle}>Project Depth</h3>
+            <p style={styles.maturityText}>
+              Accounts for repository longevity, meaningful iteration, and evidence of
+              real-world usage. Long-lived, iteratively improved projects contribute
+              more than short-lived experiments.
+            </p>
+          </div>
+
+          <div style={styles.maturityCard}>
+            <h3 style={styles.maturityCardTitle}>Open Source Engagement</h3>
+            <p style={styles.maturityText}>
+              Considers collaborative signals such as forks, stars, and contribution
+              patterns that suggest external usage or community interaction.
+            </p>
+          </div>
+
+          <div style={styles.maturityCard}>
+            <h3 style={styles.maturityCardTitle}>Engineering Intent</h3>
+            <p style={styles.maturityText}>
+              Rewards evidence of intentional engineering decisions, such as separating
+              experiments from maintained projects, archiving deprecated work, and
+              structuring repositories with clarity.
+            </p>
+          </div>
+        </div>
+
+        <p style={styles.maturityNote}>
+          The final maturity score is an aggregation of these signals, normalized to
+          reduce bias toward repository count, popularity, or language choice.
+          Exact weights may evolve as the model improves.
+        </p>
+      </section>
+
       <footer style={styles.footer}>
         <p>Built with Love ❤️ @nagsujosh</p>
       </footer>
@@ -691,5 +755,62 @@ const styles: Record<string, React.CSSProperties> = {
     color: "var(--text-tertiary)",
     fontSize: 14,
     borderTop: "1px solid var(--border)",
-  }
+  },
+  maturitySection: {
+    marginTop: 96,
+    padding: "0 8px",
+    maxWidth: 1000,
+    marginLeft: "auto",
+    marginRight: "auto",
+    marginBottom: 10
+  },
+  maturityTitle: {
+    fontSize: 30,
+    fontWeight: 700,
+    marginBottom: 24,
+    textAlign: "center",
+    letterSpacing: "-0.02em",
+  },
+  maturityIntro: {
+    fontSize: 16,
+    lineHeight: 1.7,
+    color: "var(--text-secondary)",
+    textAlign: "center",
+    maxWidth: 720,
+    margin: "0 auto 48px",
+  },
+  maturityGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: 24,
+  },
+  maturityCard: {
+    background: "var(--bg-secondary)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-lg)",
+    padding: 24,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  maturityCardTitle: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: "var(--text-primary)",
+  },
+  maturityText: {
+    fontSize: 14,
+    lineHeight: 1.7,
+    color: "var(--text-secondary)",
+  },
+  maturityNote: {
+    marginTop: 40,
+    fontSize: 13,
+    lineHeight: 1.6,
+    color: "var(--text-tertiary)",
+    textAlign: "center",
+    maxWidth: 720,
+    marginLeft: "auto",
+    marginRight: "auto",
+  },  
 };
