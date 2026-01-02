@@ -105,7 +105,7 @@ export function renderClassicBoard({
   const pad = 24;
 
   const isDark = theme === "dark";
-  const fg = isDark ? "#E5E7EB" : "#0F172A";
+  const fg = isDark ? "#E5E7EB" : "#515557";
   const muted = isDark ? "#9CA3AF" : "#64748B";
   const stroke = isDark ? "rgba(255,255,255,0.10)" : "rgba(2,6,23,0.12)";
   const panel = isDark ? "rgba(255,255,255,0.06)" : "rgba(2,6,23,0.05)";

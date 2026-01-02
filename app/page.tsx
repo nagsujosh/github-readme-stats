@@ -76,12 +76,12 @@ export default function Home() {
   const [config, setConfig] = useState<CardConfig>({
     username: "",
     cardType: "classic",
-    theme: "dark",
+    theme: "light",
     accent: "6366f1",
-    bg: "0B1220",
+    bg: "ffffff",
     border: true,
     details: "low",
-  });
+  });  
 
   const [copied, setCopied] = useState<"url" | "markdown" | null>(null);
 
@@ -131,6 +131,29 @@ export default function Home() {
   
     return () => clearTimeout(id);
   }, [inputUsername, config.username, updateConfig]);
+
+  /* -----------------------
+      Normalize derived state
+      (theme ↔ bg consistency)
+  ------------------------ */
+  useEffect(() => {
+    setConfig((prev) => {
+      const expectedBg = prev.theme === "dark" ? "0B1220" : "ffffff";
+  
+      // Only auto-normalize if user hasn't explicitly chosen a bg
+      if (
+        prev.bg === "0B1220" ||
+        prev.bg === "ffffff"
+      ) {
+        if (prev.bg !== expectedBg) {
+          return { ...prev, bg: expectedBg };
+        }
+      }
+  
+      return prev;
+    });
+  }, [config.theme]);
+
   
 
   /* -----------------------
@@ -144,10 +167,13 @@ export default function Home() {
     const path = CARD_INFO[config.cardType].path;
     const params = new URLSearchParams();
 
-    if (config.accent !== "6366f1") params.set("accent", config.accent);
-    if (config.bg !== (config.theme === "dark" ? "0B1220" : "ffffff")) {
-      params.set("bg", config.bg);
-    }
+    params.set("accent", config.accent);
+    
+    const effectiveBg = config.theme === "dark" ? "0B1220" : "ffffff";
+
+    params.set("bg", config.bg || effectiveBg);
+
+
     if (!config.border) params.set("border", "false");
     if (config.cardType === "maturity" && config.details === "high") {
       params.set("details", "high");
@@ -505,10 +531,10 @@ const styles: Record<string, React.CSSProperties> = {
     position: "sticky",
     top: 0,
     zIndex: 100,
-    background: "rgba(10, 12, 16, 0.8)",
+    background: "var(--bg-secondary)",
     backdropFilter: "blur(12px)",
     borderBottom: "1px solid var(--border)",
-  },
+  },  
   headerContent: {
     maxWidth: 1200,
     margin: "0 auto",
